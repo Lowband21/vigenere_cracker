@@ -1,6 +1,7 @@
 // src/k_len_estimator.rs
 use crate::freq_analysis::{analyze_text, index_of_coincidence};
 
+use itertools::Itertools;
 use std::collections::HashMap;
 
 fn find_gcd_of_list(numbers: Vec<usize>) -> usize {
@@ -69,9 +70,9 @@ pub fn estimate_key_length_using_multiple_strategies(
                 }
             };
         }
-        for i in &mut *friedman_lens {
-            possible_key_lengths.push(*i);
-        }
+        //for i in &mut *friedman_lens {
+        //    possible_key_lengths.push(*i);
+        //}
         if strategies.contains(&KeyLengthEstimationStrategy::GCD) && len > 5 {
             possible_key_lengths.push(len);
         }
@@ -89,6 +90,17 @@ pub fn estimate_key_length_using_multiple_strategies(
         candidates.push((key_length, avg_score));
     }
 
+    // Print the top 5 candidates
+    print!("Candidates: ");
+    let top_candidates: Vec<_> = candidates
+        .iter()
+        .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap()) // Sort candidates in descending order of score
+        .take(5)
+        .collect();
+
+    for &(len, score) in &top_candidates {
+        print!("({}, {}), ", len, score);
+    }
     candidates
         .iter()
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
