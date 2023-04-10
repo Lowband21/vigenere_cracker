@@ -70,9 +70,14 @@ fn kasiski_examination(text: &str) -> Vec<usize> {
     let text_upper = text.to_ascii_uppercase();
     let text_len = text_upper.len();
 
+    let mut start = 3;
+    if text_len < 100 {
+        start = 2;
+    }
+
     //println!("Text length: {}", text_len);
 
-    for seq_len in 3..=5 {
+    for seq_len in start..=20 {
         //println!("Sequence length: {}", seq_len);
         for start in 0..(text_len - seq_len) {
             if start + seq_len >= text_len {
@@ -131,7 +136,7 @@ fn kasiski_examination(text: &str) -> Vec<usize> {
 
     //println!("Possible key lengths: {:?}", possible_key_lengths);
 
-    possible_key_lengths.truncate(min(possible_key_lengths.len(), 20));
+    possible_key_lengths.truncate(min(possible_key_lengths.len(), 15));
     possible_key_lengths
 }
 

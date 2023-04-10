@@ -26,7 +26,7 @@ fn read_ciphertext(file_path: &Path) -> Result<String, io::Error> {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let mut ciphertext_file = Path::new("./input/ciphertext2.txt");
+    let mut ciphertext_file = Path::new("./input/ciphertext7.txt");
     if args.len() != 2 {
         eprintln!("Usage: {} <ciphertext_file>", args[0]);
         //std::process::exit(1);
@@ -47,12 +47,14 @@ fn main() {
     let key_length = estimate_key_length_using_multiple_strategies(
         &[
             KeyLengthEstimationStrategy::Autocorrelation,
+            KeyLengthEstimationStrategy::GCD,
             //KeyLengthEstimationStrategy::IndexOfCoincidence,
-            //'KeyLengthEstimationStrategy::FriedmanTest,
+            //KeyLengthEstimationStrategy::FriedmanTest,
         ],
-        &possible_key_lengths,
+        possible_key_lengths.clone(),
         &ciphertext,
         None,
+        5.0,
     );
     let (key, decrypted_text) = decrypt_vigenere(&ciphertext.to_uppercase(), key_length, None);
     let elapsed = start_time.elapsed();
