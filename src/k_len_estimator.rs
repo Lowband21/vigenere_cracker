@@ -1,6 +1,5 @@
 // src/k_len_estimator.rs
-use crate::freq_analysis::{analyze_text, index_of_coincidence};
-
+use crate::logger::log_debug;
 use itertools::Itertools;
 use std::collections::HashMap;
 
@@ -19,12 +18,11 @@ fn find_gcd_of_list(numbers: Vec<usize>) -> usize {
         .fold(0, |acc, &num| gcd(acc, num))
 }
 
-// Add the new strategy to the KeyLengthEstimationStrategy enum:
 #[derive(PartialEq)]
 pub enum KeyLengthEstimationStrategy {
     Autocorrelation,
-    IndexOfCoincidence,
-    FriedmanTest,
+    //IndexOfCoincidence,
+    //FriedmanTest,
     GCD,
 }
 
@@ -40,10 +38,11 @@ pub fn estimate_key_length_using_multiple_strategies(
         return key_length;
     }
 
-    let friedman_lens: &mut Vec<usize> = &mut Vec::new();
+    //let friedman_lens: &mut Vec<usize> = &mut Vec::new();
     let mut len = 0;
     let mut candidates: Vec<(usize, f64)> = Vec::new();
 
+    // Score each possible key
     for key_length in possible_key_lengths.clone() {
         let mut sum_scores = 0.0;
 
@@ -51,20 +50,21 @@ pub fn estimate_key_length_using_multiple_strategies(
             let _ = match strategy {
                 KeyLengthEstimationStrategy::Autocorrelation => {
                     let score = autocorrelation_score(key_length, text);
-                    println!("Autocorrelation Score: {}", score);
+                    log_debug(format!("Autocorrelation Score: {}", score));
                     sum_scores += score;
-                } // Add more strategies here when needed
+                }
+                /*
                 KeyLengthEstimationStrategy::IndexOfCoincidence => {
                     let score = index_of_coincidence_score(key_length, text);
-                    println!("Index of Coincidence Score: {}", score);
+                    log_debug(format!("Index of Coincidence Score: {}", score));
                     sum_scores += score
                 }
                 KeyLengthEstimationStrategy::FriedmanTest => {
                     let (score, len) = friedman_test(key_length, text);
                     friedman_lens.push(len.clone());
-                    println!("Friedman Test Score: {}, Len: {}", score, len);
+                    log_debug(format!("Friedman Test Score: {}, Len: {}", score, len));
                     sum_scores += score * 10.0
-                }
+                }*/
                 KeyLengthEstimationStrategy::GCD => {
                     len = find_gcd_of_list(possible_key_lengths.clone());
                 }
@@ -73,25 +73,37 @@ pub fn estimate_key_length_using_multiple_strategies(
         //for i in &mut *friedman_lens {
         //    possible_key_lengths.push(*i);
         //}
+        // Weight towards the result of find_gcd_of_list
         if strategies.contains(&KeyLengthEstimationStrategy::GCD) && len > 5 {
             possible_key_lengths.push(len);
         }
-        let frequency_map = create_frequency_map(&possible_key_lengths.clone());
-        println!("Possible key lengths after GCD: {:?}", possible_key_lengths);
 
+        let frequency_map = create_frequency_map(&possible_key_lengths.clone());
+
+        log_debug(format!(
+            "Possible key lengths after GCD: {:?}",
+            possible_key_lengths
+        ));
+
+        // Weight towards lengths that appear multiple times
         let mut frequency_bonus = 0.0;
         if key_length > 3 {
             frequency_bonus =
                 (*frequency_map.get(&key_length).unwrap_or(&0)) as f64 * frequency_multiplier;
         }
+
+        // Calculate avg score
         let avg_score = (sum_scores / strategies.len() as f64) + frequency_bonus;
 
-        println!("Key length: {}, Average Score: {}", key_length, avg_score);
+        log_debug(format!(
+            "Key length: {}, Average Score: {}",
+            key_length, avg_score
+        ));
         candidates.push((key_length, avg_score));
     }
 
     // Print the top 5 candidates
-    print!("Candidates: ");
+    log_debug(format!("Top Candidates: "));
     let top_candidates: Vec<_> = candidates
         .iter()
         .sorted_by(|a, b| b.1.partial_cmp(&a.1).unwrap()) // Sort candidates in descending order of score
@@ -99,7 +111,7 @@ pub fn estimate_key_length_using_multiple_strategies(
         .collect();
 
     for &(len, score) in &top_candidates {
-        print!("({}, {}), ", len, score);
+        log_debug(format!("({}, {}), ", len, score));
     }
     candidates
         .iter()
@@ -108,6 +120,7 @@ pub fn estimate_key_length_using_multiple_strategies(
         .0
 }
 
+// Helper for converting from Vec to HashMap
 pub fn create_frequency_map(key_lengths: &Vec<usize>) -> HashMap<usize, usize> {
     let mut frequency_map = HashMap::new();
 
@@ -119,35 +132,23 @@ pub fn create_frequency_map(key_lengths: &Vec<usize>) -> HashMap<usize, usize> {
 }
 
 pub fn autocorrelation_score(key_length: usize, text: &str) -> f64 {
+    let bytes = text.as_bytes();
+    let len = bytes.len();
     let mut correlation_count = 0;
 
-    for i in 0..text.len() - key_length {
-        if text.chars().nth(i) == text.chars().nth(i + key_length) {
+    for i in 0..len - key_length {
+        if bytes[i] == bytes[i + key_length] {
             correlation_count += 1;
         }
     }
 
-    let max_possible_matches = text.len() - key_length;
+    // Normalize
+    let max_possible_matches = len - key_length;
     let normalized_score = (correlation_count as f64) / (max_possible_matches as f64);
     1.0 + normalized_score // normalize to the range [0.5, 1.5]
 }
+
 /*
-fn autocorrelation_score(key_length: usize, text: &str) -> f64 {
-    let mut correlation_count = 0;
-
-    let chars = text.chars().collect::<Vec<char>>();
-    let text_len = chars.len();
-
-    for i in 0..text_len - key_length {
-        if chars[i] == chars[i + key_length] {
-            correlation_count += 1;
-        }
-    }
-
-    (correlation_count as f64) / (key_length as f64)
-}
-*/
-
 pub fn index_of_coincidence_score(key_length: usize, text: &str) -> f64 {
     let text_length = text.len() as f64;
 
@@ -228,10 +229,4 @@ fn calculate_index_of_coincidence(text: &str, length: usize) -> f64 {
         .sum::<usize>() as f64
         / (length * (length - 1)) as f64
 }
-
-pub fn calculate_mutual_ic(freq_map1: &HashMap<char, f64>, freq_map2: &HashMap<char, f64>) -> f64 {
-    freq_map1
-        .iter()
-        .map(|(&c, &freq1)| freq1 * freq_map2.get(&c).unwrap_or(&0.0))
-        .sum()
-}
+*/
