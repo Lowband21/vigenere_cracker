@@ -1,6 +1,6 @@
 // src/logger.rs
 
-pub const LOG_LEVEL: LogState = LogState::TIMING;
+pub const LOG_LEVEL: LogState = LogState::DEBUG;
 
 #[derive(Debug, PartialEq)]
 pub enum LogState {
@@ -16,7 +16,7 @@ pub fn log_debug(message: String) {
 }
 
 pub fn log_timing(message: String) {
-    if LOG_LEVEL == LogState::TIMING {
+    if LOG_LEVEL == LogState::TIMING || LOG_LEVEL == LogState::DEBUG {
         println!("TIMING: {}", message)
     }
 }
